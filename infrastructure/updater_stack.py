@@ -14,7 +14,9 @@ class AwsCliPackageUpdaterStack(cdk.Stack):
 
         check_frequency = cdk.Duration.hours(1)
 
-        updater_lambda = lambda_python.PythonFunction(self, "updater_fn", entry="src")
+        updater_lambda = lambda_python.PythonFunction(
+            self, "updater_fn", entry="src", timeout=cdk.Duration.seconds(10)
+        )
 
         event_target = events_targets.LambdaFunction(
             handler=typing.cast(lambda_.IFunction, updater_lambda),
