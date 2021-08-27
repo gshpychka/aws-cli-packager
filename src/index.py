@@ -2,6 +2,8 @@ import requests
 import hashlib
 import urllib
 
+import os
+
 
 def handler(event, context):
 
@@ -29,6 +31,7 @@ def handler(event, context):
             break
         hash.update(data)
     print(hash.hexdigest())
+
     with open("PKGBUILD_template", "r") as template:
         filled_in = (
             template.read()
@@ -36,5 +39,15 @@ def handler(event, context):
             .replace("{sha256sums}", hash.hexdigest())
         )
 
-    with open("PKGBUILD", "w") as pkgbuild:
+    with open("/tmp/PKGBUILD", "w") as pkgbuild:
         pkgbuild.write(filled_in)
+
+    with open(".SRCINFO_template", "r") as template:
+        filled_in = (
+            template.read()
+            .replace("{pkgver}", latest_version)
+            .replace("{sha256sums}", hash.hexdigest())
+        )
+
+    with open("/tmp/.SRCINFO", "w") as srcinfo:
+        srcinfo.write(filled_in)
