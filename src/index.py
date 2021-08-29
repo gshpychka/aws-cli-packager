@@ -111,7 +111,7 @@ def handler(event, context):
     package_name = "aws-cli-v2-bin"
     # remote_repo_url = f"https://aur.archlinux.org/{package_name}.git"
     remote_repo_url = f"https://github.com/gshpychka/aur-{package_name}.git"
-    secret_name = f"misc/ssh_keys/aur"
+    secret_name = os.environ["SSH_KEY_SECRET_NAME"]
     latest_version = get_latest_version(github_api_url=github_api_url)
 
     print(f"Latest version is {latest_version}")
