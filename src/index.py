@@ -2,9 +2,11 @@ import requests
 import hashlib
 import urllib
 import boto3
+import re
 
 import os
 import subprocess
+import typing
 
 
 def get_secret_string(secret_name: str) -> str:
@@ -19,7 +21,15 @@ def get_secret_string(secret_name: str) -> str:
     return secret_string
 
 
-def setup_ssh_key(secret_name: str) -> None:
+def parse_agent_env(agent_output: str) -> typing.Dict[str, str]:
+
+    agent_env = {}
+    for name, value in re.findall(f"([A-Z_]+)=([^;]+);", agent_output):
+        agent_env[name] = value
+    return agent_env
+
+
+def setup_ssh_key_get_env(secret_name: str) -> typing.Dict[str, str]:
     ssh_private_key = get_secret_string(secret_name=secret_name)
     ssh_private_key_lines = ssh_private_key.split("\\n")
 
@@ -29,26 +39,37 @@ def setup_ssh_key(secret_name: str) -> None:
 
     os.chmod(key_file_path, 0o600)
 
-    subprocess.run(
-        f'eval "$(ssh-agent -s)" && ssh-add {key_file_path}', check=True, shell=True
-    )
+    # agent_output = subprocess.run(
+    #     ["ssh-agent", "-s"], check=True, shell=True, text=True, capture_output=True
+    # ).stdout
+
+    # agent_env = parse_agent_env(agent_output=agent_output)
+    env = {}
+    env.update(os.environ)
+    # env.update(agent_env)
+    env["GIT_SSH_COMMAND"] = f"ssh -i {key_file_path} -o StrictHostKeyChecking=no"
+    # subprocess.run(f"ssh-add {key_file_path}", env=env, check=True, shell=True)
+    return env
 
 
-def update_remote_repo(git_repo_url: str, latest_version: str, sha256sum: str) -> None:
+def update_remote_repo(
+    git_repo_url: str, latest_version: str, sha256sum: str, env: typing.Dict[str, str]
+) -> None:
 
     clone_path = "/tmp/remote_repo"
     try:
 
-        clone_output = subprocess.run(
+        subprocess.run(
             f"git clone --depth 1 {git_repo_url} {clone_path}",
             check=True,
             shell=True,
             universal_newlines=True,
+            env=env,
         )
 
-        print(f"Repo cloned: \n{clone_output}")
+        print(f"Repo cloned")
     except subprocess.CalledProcessError as ex:
-        print(f"Cloning failed: {ex.output}")
+        print(f"Clone failed: {ex.output}")
 
     with open("PKGBUILD_template", "r") as template:
         filled_in = (
@@ -60,7 +81,7 @@ def update_remote_repo(git_repo_url: str, latest_version: str, sha256sum: str) -
     with open(os.path.join(clone_path, "PKGBUILD"), "w") as pkgbuild:
         pkgbuild.write(filled_in)
 
-    with open(".SRCINFO_template", "r") as template:
+    with open("SRCINFO_template", "r") as template:
         filled_in = (
             template.read()
             .replace("{pkgver}", latest_version)
@@ -70,12 +91,27 @@ def update_remote_repo(git_repo_url: str, latest_version: str, sha256sum: str) -
     with open(os.path.join(clone_path, ".SRCINFO"), "w") as srcinfo:
         srcinfo.write(filled_in)
 
-    subprocess.run(f"cd {clone_path} && git add *", check=True, shell=True)
     subprocess.run(
-        f"git commit -m 'Updated to version {latest_version}'", check=True, shell=True
+        f"cd {clone_path}" + " && git add PKGBUILD" + " && git add .SRCINFO",
+        check=True,
+        shell=True,
+    )
+    subprocess.run(
+        f"cd {clone_path}"
+        + ' && git config user.email "glibshpychka@gmail.com"'
+        + ' && git config user.name "Glib Shpychka"',
+        check=True,
+        shell=True,
+    )
+    subprocess.run(
+        f"cd {clone_path} && git commit -m 'Updated to version {latest_version}'",
+        check=True,
+        shell=True,
     )
     try:
-        subprocess.run("git push", check=True, shell=True)
+        subprocess.run(
+            f"cd {clone_path}" + " && git push", check=True, shell=True, env=env
+        )
     except subprocess.CalledProcessError as ex:
         print(f"Push failed: {ex.output}")
 
@@ -114,8 +150,8 @@ def handler(event, context):
         "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-{latest_version}.zip"
     )
     package_name = "aws-cli-v2-bin"
-    # remote_repo_url = f"https://aur.archlinux.org/{package_name}.git"
-    remote_repo_url = f"https://github.com/gshpychka/aur-{package_name}.git"
+    # remote_repo_url = f"ssh://aur@aur.archlinux.org/{package_name}.git"
+    remote_repo_url = f"ssh://git@github.com/gshpychka/aur-{package_name}.git"
     secret_name = os.environ["SSH_KEY_SECRET_NAME"]
     latest_version = get_latest_version(github_api_url=github_api_url)
 
@@ -127,10 +163,11 @@ def handler(event, context):
 
     print(sha256sum)
 
-    setup_ssh_key(secret_name=secret_name)
+    env = setup_ssh_key_get_env(secret_name=secret_name)
 
     update_remote_repo(
         git_repo_url=remote_repo_url,
         latest_version=latest_version,
         sha256sum=sha256sum,
+        env=env,
     )

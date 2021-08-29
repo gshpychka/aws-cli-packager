@@ -1,6 +1,7 @@
 from aws_cdk import (
     core as cdk,
     aws_lambda as lambda_,
+    aws_lambda_python as lambda_python,
     aws_events as events,
     aws_events_targets as events_targets,
     aws_secretsmanager as sm,
@@ -20,14 +21,20 @@ class AwsCliPackageUpdaterStack(cdk.Stack):
             self, "ssh_key", secret_name=secret_name
         )
 
-        updater_lambda = lambda_.Function(
+        git_layer = lambda_.LayerVersion.from_layer_version_arn(
+            self,
+            "git",
+            layer_version_arn=f"arn:aws:lambda:{self.region}:553035198032:layer:git-lambda2:8",
+        )
+
+        updater_lambda = lambda_python.PythonFunction(
             self,
             "updater_fn",
-            code=lambda_.Code.from_asset_image("src"),
+            entry="src",
             environment={"SSH_KEY_SECRET_NAME": secret_name},
-            handler=lambda_.Handler.FROM_IMAGE,
-            runtime=lambda_.Runtime.FROM_IMAGE,
+            runtime=typing.cast(lambda_.Runtime, lambda_.Runtime.PYTHON_3_8),
             timeout=cdk.Duration.seconds(10),
+            layers=[git_layer],
         )
 
         private_ssh_key.grant_read(typing.cast(iam.Role, updater_lambda.role))
