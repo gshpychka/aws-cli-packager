@@ -19,10 +19,7 @@ def get_secret_string(secret_name: str) -> str:
     return secret_string
 
 
-def update_remote_repo(
-    secret_name: str, git_repo_url: str, latest_version: str, sha256sum: str
-) -> None:
-
+def setup_ssh_key(secret_name: str) -> None:
     ssh_private_key = get_secret_string(secret_name=secret_name)
 
     key_file_path = "/tmp/ssh_private_key"
@@ -30,6 +27,13 @@ def update_remote_repo(
         key_file.write(ssh_private_key)
 
     os.chmod(key_file_path, 0o600)
+
+    subprocess.check_output('eval "$(ssh-agent -s)"', shell=True)
+    subprocess.check_output(f"ssh-add {key_file_path}", shell=True)
+
+def update_remote_repo(
+    git_repo_url: str, latest_version: str, sha256sum: str
+) -> None:
 
     clone_path = "/tmp/remote_repo"
     try:
@@ -67,10 +71,7 @@ def update_remote_repo(
     subprocess.check_output(f"cd {clone_path} && git add *", shell=True)
     subprocess.check_output(f"git commit -m 'Updated to version {latest_version}'")
     try:
-        git_use_key_cmd = (
-            f'GIT_SSH_COMMAND="ssh -i {key_file_path} -o StrictHostKeyChecking=no'
-        )
-        subprocess.check_output(f"{git_use_key_cmd} git push", shell=True)
+        subprocess.check_output("git push", shell=True)
     except subprocess.CalledProcessError as ex:
         print(f"Push failed: {ex.output}")
 
@@ -122,8 +123,9 @@ def handler(event, context):
 
     print(sha256sum)
 
+    setup_ssh_key(secret_name=secret_name)
+
     update_remote_repo(
-        secret_name=secret_name,
         git_repo_url=remote_repo_url,
         latest_version=latest_version,
         sha256sum=sha256sum,
