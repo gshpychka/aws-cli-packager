@@ -1,4 +1,5 @@
 # Maintainer: Steve Engledow <steve@engledow.me>
+# Maintainer: Glib Shpychka <glib.shpychka@gmail.com>
 pkgname=aws-cli-v2-bin
 pkgver={pkgver}
 pkgrel=1
