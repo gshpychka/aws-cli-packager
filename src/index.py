@@ -33,7 +33,7 @@ def update_remote_repo(
     try:
 
         clone_output = subprocess.check_output(
-            f"git clone --depth 1 ssh://git@{git_repo_url} {clone_path}",
+            f"git clone --depth 1 {git_repo_url} {clone_path}",
             shell=True,
             universal_newlines=True,
         )
@@ -107,8 +107,9 @@ def handler(event, context):
         "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-{latest_version}.zip"
     )
     package_name = "aws-cli-v2-bin"
-    remote_repo_url = f"aur.archlinux.org/{package_name}.git"
-    secret_name = f"misc/update_aur_package/{package_name}"
+    # remote_repo_url = f"https://aur.archlinux.org/{package_name}.git"
+    remote_repo_url = f"https://github.com/gshpychka/aur-{package_name}.git"
+    secret_name = f"misc/ssh_keys/aur"
     latest_version = get_latest_version(github_api_url=github_api_url)
 
     print(f"Latest version is {latest_version}")
