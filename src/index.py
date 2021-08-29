@@ -28,8 +28,9 @@ def setup_ssh_key(secret_name: str) -> None:
 
     os.chmod(key_file_path, 0o600)
 
-    subprocess.run('eval "$(ssh-agent -s)"', check=True, shell=True)
-    subprocess.run(f"ssh-add {key_file_path}", check=True, shell=True)
+    subprocess.run(
+        f'eval "$(ssh-agent -s)" && ssh-add {key_file_path}', check=True, shell=True
+    )
 
 
 def update_remote_repo(git_repo_url: str, latest_version: str, sha256sum: str) -> None:
