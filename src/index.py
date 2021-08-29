@@ -10,9 +10,11 @@ import subprocess
 def get_secret_string(secret_name: str) -> str:
     sm = boto3.client("secretsmanager")
 
-    secret_string = sm.get_secret_value(SecretId=secret_name)
+    secret_response = sm.get_secret_value(SecretId=secret_name)
 
-    assert "SecretString" in secret_string
+    assert "SecretString" in secret_response
+
+    secret_string = secret_response["SecretString"]
 
     return secret_string
 
