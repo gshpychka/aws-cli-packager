@@ -28,18 +28,18 @@ def setup_ssh_key(secret_name: str) -> None:
 
     os.chmod(key_file_path, 0o600)
 
-    subprocess.check_output('eval "$(ssh-agent -s)"', shell=True)
-    subprocess.check_output(f"ssh-add {key_file_path}", shell=True)
+    subprocess.run('eval "$(ssh-agent -s)"', check=True, shell=True)
+    subprocess.run(f"ssh-add {key_file_path}", check=True, shell=True)
 
-def update_remote_repo(
-    git_repo_url: str, latest_version: str, sha256sum: str
-) -> None:
+
+def update_remote_repo(git_repo_url: str, latest_version: str, sha256sum: str) -> None:
 
     clone_path = "/tmp/remote_repo"
     try:
 
-        clone_output = subprocess.check_output(
+        clone_output = subprocess.run(
             f"git clone --depth 1 {git_repo_url} {clone_path}",
+            check=True,
             shell=True,
             universal_newlines=True,
         )
@@ -68,10 +68,12 @@ def update_remote_repo(
     with open(os.path.join(clone_path, ".SRCINFO"), "w") as srcinfo:
         srcinfo.write(filled_in)
 
-    subprocess.check_output(f"cd {clone_path} && git add *", shell=True)
-    subprocess.check_output(f"git commit -m 'Updated to version {latest_version}'")
+    subprocess.run(f"cd {clone_path} && git add *", check=True, shell=True)
+    subprocess.run(
+        f"git commit -m 'Updated to version {latest_version}'", check=True, shell=True
+    )
     try:
-        subprocess.check_output("git push", shell=True)
+        subprocess.run("git push", check=True, shell=True)
     except subprocess.CalledProcessError as ex:
         print(f"Push failed: {ex.output}")
 
