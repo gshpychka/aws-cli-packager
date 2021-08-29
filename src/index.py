@@ -21,12 +21,13 @@ def get_secret_string(secret_name: str) -> str:
 
 def setup_ssh_key(secret_name: str) -> None:
     ssh_private_key = get_secret_string(secret_name=secret_name)
+    ssh_private_key_lines = ssh_private_key.split("\\n")
 
     print(ssh_private_key)
 
     key_file_path = "/tmp/ssh_private_key"
     with open(key_file_path, "w") as key_file:
-        key_file.write(ssh_private_key)
+        key_file.writelines(ssh_private_key_lines)
 
     os.chmod(key_file_path, 0o600)
 
