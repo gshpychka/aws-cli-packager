@@ -21,6 +21,7 @@ class AwsCliPackageUpdaterStack(cdk.Stack):
             self, "ssh_key", secret_name=secret_name
         )
 
+        # https://github.com/lambci/git-lambda-layer
         git_layer = lambda_.LayerVersion.from_layer_version_arn(
             self,
             "git",
