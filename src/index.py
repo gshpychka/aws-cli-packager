@@ -104,7 +104,7 @@ def update_remote_repo(
         shell=True,
     )
     subprocess.run(
-        f"cd {clone_path} && git commit -m 'Updated to version {latest_version}'",
+        f"cd {clone_path} && git commit -m 'Update to {latest_version}'",
         check=True,
         shell=True,
     )
